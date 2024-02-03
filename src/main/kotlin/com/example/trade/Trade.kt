@@ -7,7 +7,7 @@ import java.util.*
 data class Trade(
     val price: Double,
     val quantity: Double,
-    val currencyPair: String,
+    val currencyPair: CurrencyPair,
     val tradedAt: ZonedDateTime,
     val takerSide: BuyOrSellEnum,
     val quoteVolume: Double = price * quantity
