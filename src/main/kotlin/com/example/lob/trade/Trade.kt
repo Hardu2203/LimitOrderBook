@@ -1,5 +1,6 @@
 package com.example.lob.trade
 
+import com.example.lob.currencypair.CurrencyPair
 import com.example.lob.order.BuyOrSellEnum
 import java.time.ZonedDateTime
 import java.util.*

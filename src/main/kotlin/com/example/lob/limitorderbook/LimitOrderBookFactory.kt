@@ -1,6 +1,6 @@
-package com.example.lob
+package com.example.lob.limitorderbook
 
-import com.example.lob.trade.CurrencyPair
+import com.example.lob.currencypair.CurrencyPair
 import org.springframework.stereotype.Component
 
 @Component

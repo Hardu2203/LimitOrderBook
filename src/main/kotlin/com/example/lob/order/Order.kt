@@ -1,6 +1,6 @@
 package com.example.lob.order
 
-import com.example.lob.trade.CurrencyPair
+import com.example.lob.currencypair.CurrencyPair
 
 data class Order(
     val price: Double,

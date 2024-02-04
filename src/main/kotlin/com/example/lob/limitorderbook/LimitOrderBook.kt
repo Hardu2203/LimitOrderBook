@@ -1,4 +1,4 @@
-package com.example.lob
+package com.example.lob.limitorderbook
 
 import com.example.lob.order.BuyOrSellEnum
 import com.example.lob.order.Order
@@ -12,12 +12,12 @@ import kotlin.math.min
 
 @Component
 class LimitOrderBook(
-    val bestAsk: PriorityQueue<LimitPriceOrders> = PriorityQueue { o1, o2 -> o1.price.compareTo(o2.price) },
-    val bestBid: PriorityQueue<LimitPriceOrders> = PriorityQueue { o1, o2 -> o2.price.compareTo(o1.price) },
-    val orderMap: MutableMap<OrderId, Order> = mutableMapOf(),
-    val volumeMap: MutableMap<Pair<Double, BuyOrSellEnum>, Double> = mutableMapOf(),
-    val orderQueueMap: MutableMap<Pair<Double, BuyOrSellEnum>, LimitPriceOrders> = mutableMapOf(),
-    val recentTrades: TreeMap<ZonedDateTime, Trade> = TreeMap()
+    private val bestAsk: PriorityQueue<LimitPriceOrders> = PriorityQueue { o1, o2 -> o1.price.compareTo(o2.price) },
+    private val bestBid: PriorityQueue<LimitPriceOrders> = PriorityQueue { o1, o2 -> o2.price.compareTo(o1.price) },
+    private val orderMap: MutableMap<OrderId, Order> = mutableMapOf(),
+    private val volumeMap: MutableMap<Pair<Double, BuyOrSellEnum>, Double> = mutableMapOf(),
+    private val orderQueueMap: MutableMap<Pair<Double, BuyOrSellEnum>, LimitPriceOrders> = mutableMapOf(),
+    private val recentTrades: TreeMap<ZonedDateTime, Trade> = TreeMap<ZonedDateTime, Trade>()
 ) {
 
     fun addOrder(order: Order) {
@@ -66,6 +66,7 @@ class LimitOrderBook(
             val limitPriceOrders = orderQueueMap[order.price to order.buyOrSellEnum]
                 ?: throw IllegalStateException("OrderId $orderId was not found in the LimitOrderBook queueMap")
             limitPriceOrders.orders.remove(order)
+            limitPriceOrders.quantity.minus(order.quantity)
             if (limitPriceOrders.orders.size == 0) {
                 orderQueueMap.remove(order.price to order.buyOrSellEnum)
                 val (sameSide) = getTradeSideDetail(order)
@@ -96,8 +97,31 @@ class LimitOrderBook(
         return volumeMap[(price to buyOrSellEnum)]
     }
 
-    fun getTradeHistory(): TreeMap<ZonedDateTime, Trade> {
-        return TreeMap(recentTrades)
+    fun getTradeHistory(
+        startTime: ZonedDateTime = ZonedDateTime.parse("2000-01-01T00:00:00Z"),
+        endDateTime: ZonedDateTime = ZonedDateTime.parse("9999-12-31T23:59:59Z"),
+        skip: Int = 0,
+        limit: Int = 100,
+    ): List<Trade> {
+        return recentTrades.subMap(startTime, endDateTime).values.drop(skip).take(limit)
+    }
+
+    fun <T> getBestBids(first: Int, mapping: (LimitPriceOrders) -> T): List<T> {
+        val minFirst = min(bestBid.size, first)
+        val bestBidList: MutableList<T> = mutableListOf()
+        repeat(minFirst) {
+            bestBidList.add(bestBid.peek().let(mapping))
+        }
+        return bestBidList
+    }
+
+    fun <T> getBestAsks(first: Int, mapping: (LimitPriceOrders) -> T): List<T> {
+        val minFirst = min(bestAsk.size, first)
+        val bestAskList: MutableList<T> = mutableListOf()
+        repeat(minFirst) {
+            bestAskList.add(bestAsk.peek().let(mapping))
+        }
+        return bestAskList
     }
 
     private fun addToTradeHistory(trade: Trade) {
@@ -125,13 +149,14 @@ class LimitOrderBook(
         val queue = orderQueueMap[order.price to order.buyOrSellEnum]
         if (queue != null) {
             queue.orders.add(order)
+            queue.quantity += order.quantity
             volumeMap[order.price to order.buyOrSellEnum] =
                 volumeMap[order.price to order.buyOrSellEnum]?.plus(order.volume)
                     ?: throw IllegalStateException("OrderId: ${order.orderId} was not found in the LimitOrderBook volumeMap")
         } else {
             val linkedList = LinkedList<Order>()
             linkedList.add(order)
-            val limitPriceOrders = LimitPriceOrders(order.price, linkedList)
+            val limitPriceOrders = LimitPriceOrders(order.price, order.quantity, linkedList)
             sameSide.add(limitPriceOrders)
             orderQueueMap[order.price to order.buyOrSellEnum] = limitPriceOrders
             volumeMap[order.price to order.buyOrSellEnum] = order.volume

@@ -1,15 +1,16 @@
 package com.example
 
-import com.example.lob.LimitOrderBook
-import org.springframework.boot.CommandLineRunner
+import com.example.lob.security.RsaKeyProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
-import org.springframework.stereotype.Component
 import java.util.*
 
 @SpringBootApplication
+@EnableConfigurationProperties(RsaKeyProperties::class)
 class LobApplication
 
 fun main(args: Array<String>) {
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     runApplication<LobApplication>(*args)
 }

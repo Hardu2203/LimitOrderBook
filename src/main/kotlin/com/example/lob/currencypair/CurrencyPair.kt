@@ -1,4 +1,4 @@
-package com.example.lob.trade
+package com.example.lob.currencypair
 
 enum class CurrencyPair {
     BTCZAR, ETHZAR;

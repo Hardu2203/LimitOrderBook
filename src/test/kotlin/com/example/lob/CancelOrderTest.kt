@@ -1,8 +1,9 @@
 package com.example.lob
 
+import com.example.lob.currencypair.CurrencyPair
+import com.example.lob.limitorderbook.LimitOrderBook
 import com.example.lob.order.BuyOrSellEnum
 import com.example.lob.order.Order
-import com.example.lob.trade.CurrencyPair
 import org.junit.jupiter.api.*
 
 class CancelOrderTest {
