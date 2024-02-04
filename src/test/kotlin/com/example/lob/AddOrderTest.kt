@@ -1,8 +1,8 @@
 package com.example.lob
 
-import com.example.order.BuyOrSellEnum
-import com.example.order.Order
-import com.example.trade.CurrencyPair
+import com.example.lob.order.BuyOrSellEnum
+import com.example.lob.order.Order
+import com.example.lob.trade.CurrencyPair
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

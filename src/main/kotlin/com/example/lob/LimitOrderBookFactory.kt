@@ -1,6 +1,6 @@
 package com.example.lob
 
-import com.example.trade.CurrencyPair
+import com.example.lob.trade.CurrencyPair
 import org.springframework.stereotype.Component
 
 @Component

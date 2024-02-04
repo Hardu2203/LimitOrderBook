@@ -1,4 +1,4 @@
-package com.example.order
+package com.example.lob.order
 
 enum class BuyOrSellEnum {
     BUY,

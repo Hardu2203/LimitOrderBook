@@ -1,8 +1,8 @@
 package com.example.lob
 
-import com.example.order.BuyOrSellEnum
-import com.example.order.Order
-import com.example.order.OrderId
+import com.example.lob.order.BuyOrSellEnum
+import com.example.lob.order.Order
+import com.example.lob.order.OrderId
 import org.springframework.stereotype.Service
 import kotlin.math.min
 import mu.KotlinLogging

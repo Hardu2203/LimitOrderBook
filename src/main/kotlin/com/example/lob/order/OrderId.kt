@@ -1,4 +1,4 @@
-package com.example.order
+package com.example.lob.order
 
 import java.util.concurrent.atomic.AtomicInteger
 

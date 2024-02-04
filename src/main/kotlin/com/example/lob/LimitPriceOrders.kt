@@ -1,6 +1,6 @@
 package com.example.lob
 
-import com.example.order.Order
+import com.example.lob.order.Order
 import java.util.LinkedList
 
 data class LimitPriceOrders(
