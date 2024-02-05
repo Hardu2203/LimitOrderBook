@@ -38,9 +38,13 @@ Create security certs in used to create JWT tokens
 
 [Postman documentation](https://documenter.getpostman.com/view/9093373/2s9YywdeKr)
 
-Please use the following user for testing
+Please use the following users for testing
 ```sh
 username: Satoshi
+password: password
+```
+```sh
+username: Vitalik
 password: password
 ```
 ## Credits
