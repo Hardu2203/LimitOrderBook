@@ -1,12 +1,13 @@
 package com.example.lob.order
 
 import com.example.lob.currencypair.CurrencyPair
+import java.math.BigDecimal
 
 data class Order(
-    val price: Double,
-    val quantity: Double,
+    val price: BigDecimal,
+    var quantity: BigDecimal,
     val currencyPair: CurrencyPair,
-    var volume: Double = price * quantity,
+    var volume: BigDecimal = price * quantity,
     var username: String,
     val buyOrSellEnum: BuyOrSellEnum,
     val orderId: OrderId = OrderId()

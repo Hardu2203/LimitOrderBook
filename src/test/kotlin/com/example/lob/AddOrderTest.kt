@@ -5,6 +5,7 @@ import com.example.lob.limitorderbook.LimitOrderBook
 import com.example.lob.order.BuyOrSellEnum
 import com.example.lob.order.Order
 import org.junit.jupiter.api.*
+import java.math.BigDecimal
 
 class AddOrderTest {
 
@@ -24,15 +25,15 @@ class AddOrderTest {
         fun shouldAddOrdersToBook() {
             //given
             val buyOrder1 = Order(
-                price = 10.0,
-                quantity = 5.0,
+                price = BigDecimal(10),
+                quantity = BigDecimal(5),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Vitalik",
                 buyOrSellEnum = BuyOrSellEnum.BUY
             )
             val buyOrder2 = Order(
-                price = 20.0,
-                quantity = 5.0,
+                price = BigDecimal(20),
+                quantity = BigDecimal(5),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Vitalik",
                 buyOrSellEnum = BuyOrSellEnum.BUY
@@ -43,25 +44,25 @@ class AddOrderTest {
             limitOrderBook.addOrder(buyOrder2)
 
             //then
-            Assertions.assertEquals(20.0, limitOrderBook.getBestBidOrNull()?.price)
-            Assertions.assertEquals(buyOrder1, limitOrderBook.getOrderQueue(10.0, BuyOrSellEnum.BUY)?.orders?.peek())
+            Assertions.assertEquals(BigDecimal(20), limitOrderBook.getBestBidOrNull()?.price)
+            Assertions.assertEquals(buyOrder1, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.peek())
             Assertions.assertEquals(buyOrder2, limitOrderBook.getOrderByIdOrNull(buyOrder2.orderId))
-            Assertions.assertEquals(100.0, limitOrderBook.getVolume(20.0, BuyOrSellEnum.BUY))
+            Assertions.assertEquals(BigDecimal(100), limitOrderBook.getVolume(BigDecimal(20.0), BuyOrSellEnum.BUY))
         }
 
         @Test
         @DisplayName("Order volume should match bid/buy orders at price")
         fun orderVolumeShouldMatchBidBuyOrdersAtPrice() {
             val buyOrder1 = Order(
-                price = 10.0,
-                quantity = 5.0,
+                price = BigDecimal(10.0),
+                quantity = BigDecimal(5.0),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Vitalik",
                 buyOrSellEnum = BuyOrSellEnum.BUY
             )
             val buyOrder2 = Order(
-                price = 10.0,
-                quantity = 20.0,
+                price = BigDecimal(10.0),
+                quantity = BigDecimal(20.0),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Vitalik",
                 buyOrSellEnum = BuyOrSellEnum.BUY
@@ -72,8 +73,8 @@ class AddOrderTest {
             limitOrderBook.addOrder(buyOrder2)
 
             //then
-            Assertions.assertEquals(2, limitOrderBook.getOrderQueue(10.0, BuyOrSellEnum.BUY)?.orders?.size)
-            Assertions.assertEquals(250.0, limitOrderBook.getVolume(10.0, BuyOrSellEnum.BUY))
+            Assertions.assertEquals(2, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.size)
+            Assertions.assertEquals(BigDecimal( 250), limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.BUY))
         }
 
     }
@@ -87,15 +88,15 @@ class AddOrderTest {
         fun shouldAddOrdersToBook() {
             //given
             val sellOrder1 = Order(
-                price = 80.0,
-                quantity = 5.0,
+                price = BigDecimal(80.0),
+                quantity = BigDecimal(5.0),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Satoshi",
                 buyOrSellEnum = BuyOrSellEnum.SELL
             )
             val sellOrder2 = Order(
-                price = 50.0,
-                quantity = 5.0,
+                price = BigDecimal(50.0),
+                quantity = BigDecimal(5.0),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Satoshi",
                 buyOrSellEnum = BuyOrSellEnum.SELL
@@ -106,10 +107,10 @@ class AddOrderTest {
             limitOrderBook.addOrder(sellOrder2)
 
             //then
-            Assertions.assertEquals(50.0, limitOrderBook.getBestAskOrNull()?.price)
-            Assertions.assertEquals(sellOrder1, limitOrderBook.getOrderQueue(80.0, BuyOrSellEnum.SELL)?.orders?.peek())
+            Assertions.assertEquals(BigDecimal(50.0), limitOrderBook.getBestAskOrNull()?.price)
+            Assertions.assertEquals(sellOrder1, limitOrderBook.getOrderQueue(BigDecimal(80.0), BuyOrSellEnum.SELL)?.orders?.peek())
             Assertions.assertEquals(sellOrder2, limitOrderBook.getOrderByIdOrNull(sellOrder2.orderId))
-            Assertions.assertEquals(400.0, limitOrderBook.getVolume(80.0, BuyOrSellEnum.SELL))
+            Assertions.assertEquals(BigDecimal(400.0), limitOrderBook.getVolume(BigDecimal(80.0), BuyOrSellEnum.SELL))
         }
 
         @Test
@@ -117,15 +118,15 @@ class AddOrderTest {
         fun orderVolumeShouldMatchAskSellOrdersAtPrice() {
             //given
             val sellOrder1 = Order(
-                price = 50.0,
-                quantity = 10.0,
+                price = BigDecimal(50.0),
+                quantity = BigDecimal(10.0),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Satoshi",
                 buyOrSellEnum = BuyOrSellEnum.SELL
             )
             val sellOrder2 = Order(
-                price = 50.0,
-                quantity = 5.0,
+                price = BigDecimal(50.0),
+                quantity = BigDecimal(5.0),
                 currencyPair = CurrencyPair.BTCZAR,
                 username = "Satoshi",
                 buyOrSellEnum = BuyOrSellEnum.SELL
@@ -136,8 +137,8 @@ class AddOrderTest {
             limitOrderBook.addOrder(sellOrder2)
 
             //then
-            Assertions.assertEquals(2, limitOrderBook.getOrderQueue(50.0, BuyOrSellEnum.SELL)?.orders?.size)
-            Assertions.assertEquals(750.0, limitOrderBook.getVolume(50.0, BuyOrSellEnum.SELL))
+            Assertions.assertEquals(2, limitOrderBook.getOrderQueue(BigDecimal(50.0), BuyOrSellEnum.SELL)?.orders?.size)
+            Assertions.assertEquals(BigDecimal(750.0), limitOrderBook.getVolume(BigDecimal(50.0), BuyOrSellEnum.SELL))
         }
 
     }

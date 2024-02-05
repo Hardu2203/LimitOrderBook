@@ -1,10 +1,11 @@
 package com.example.lob.order
 
 import com.example.lob.currencypair.CurrencyPair
+import java.math.BigDecimal
 
 class OrderDto(
-    val price: Double,
-    val quantity: Double,
+    val price: BigDecimal,
+    val quantity: BigDecimal,
     val currencyPair: CurrencyPair,
     val buyOrSellEnum: BuyOrSellEnum
 ) {

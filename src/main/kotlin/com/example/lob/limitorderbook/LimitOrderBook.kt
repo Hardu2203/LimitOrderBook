@@ -6,6 +6,7 @@ import com.example.lob.order.OrderId
 import com.example.lob.trade.Trade
 import mu.KotlinLogging
 import org.springframework.stereotype.Component
+import java.math.BigDecimal
 import java.time.ZonedDateTime
 import java.util.*
 import kotlin.math.min
@@ -15,44 +16,51 @@ class LimitOrderBook(
     private val bestAsk: PriorityQueue<LimitPriceOrders> = PriorityQueue { o1, o2 -> o1.price.compareTo(o2.price) },
     private val bestBid: PriorityQueue<LimitPriceOrders> = PriorityQueue { o1, o2 -> o2.price.compareTo(o1.price) },
     private val orderMap: MutableMap<OrderId, Order> = mutableMapOf(),
-    private val volumeMap: MutableMap<Pair<Double, BuyOrSellEnum>, Double> = mutableMapOf(),
-    private val orderQueueMap: MutableMap<Pair<Double, BuyOrSellEnum>, LimitPriceOrders> = mutableMapOf(),
+    private val volumeMap: MutableMap<Pair<BigDecimal, BuyOrSellEnum>, BigDecimal> = mutableMapOf(),
+    private val orderQueueMap: MutableMap<Pair<BigDecimal, BuyOrSellEnum>, LimitPriceOrders> = mutableMapOf(),
     private val recentTrades: TreeMap<ZonedDateTime, Trade> = TreeMap<ZonedDateTime, Trade>()
 ) {
 
     fun addOrder(order: Order) {
         val (sameSide, otherSide, sidePriceComparison) = getTradeSideDetail(order)
 
-        while (order.volume > 0 && otherSide.isNotEmpty() && sidePriceComparison(
+        while (order.volume > BigDecimal.ZERO && otherSide.isNotEmpty() && sidePriceComparison(
                 otherSide.peek().orders.peek().price,
                 order.price
             )
         ) {
-            val otherOrder = otherSide.peek().orders.peek()
+            val otherLimitPriceOrders = otherSide.peek()
+            val otherOrder = otherLimitPriceOrders.orders.peek()
             val tradePrice = otherOrder.price
             val tradeVolume = min(order.volume, otherOrder.volume)
+            val tradeQuantity = min(order.quantity, otherOrder.quantity)
+
             reduceVolumeMap(otherOrder.price, otherOrder.buyOrSellEnum, tradeVolume)
-            otherOrder.volume = otherOrder.volume.minus(tradeVolume)
-            order.volume = order.volume.minus(tradeVolume)
+
+            otherOrder.volume -= tradeVolume
+            order.volume -= tradeVolume
+            otherOrder.quantity -= tradeQuantity
+            order.quantity -= tradeQuantity
+            otherLimitPriceOrders.quantity -= tradeQuantity
 
             logger.info { "Existing order ${otherOrder.orderId} ${otherOrder.buyOrSellEnum} matched with ${order.orderId} ${order.buyOrSellEnum} " }
 
             addToTradeHistory(
                 Trade(
                     price = tradePrice,
-                    quantity = min(order.quantity, otherOrder.quantity),
+                    quantity = tradeQuantity,
                     currencyPair = otherOrder.currencyPair,
                     tradedAt = ZonedDateTime.now(),
                     takerSide = order.buyOrSellEnum,
                 )
             )
 
-            if (otherOrder.volume == 0.0) {
+            if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
                 cancelOrder(otherOrder.orderId)
             }
         }
 
-        if (order.volume > 0) {
+        if (order.volume > BigDecimal.ZERO) {
             orderMap[order.orderId] = order
             addOrderToBook(order, sameSide)
         }
@@ -72,7 +80,7 @@ class LimitOrderBook(
                 val (sameSide) = getTradeSideDetail(order)
                 sameSide.remove(limitPriceOrders)
             }
-            if (order.volume > 0) reduceVolumeMap(order.price, order.buyOrSellEnum, order.volume)
+            if (order.volume > BigDecimal.ZERO) reduceVolumeMap(order.price, order.buyOrSellEnum, order.volume)
             orderMap.remove(orderId)
         }
     }
@@ -85,7 +93,7 @@ class LimitOrderBook(
         return bestAsk.peek()?.orders?.peek()
     }
 
-    fun getOrderQueue(price: Double, buyOrSellEnum: BuyOrSellEnum): LimitPriceOrders? {
+    fun getOrderQueue(price: BigDecimal, buyOrSellEnum: BuyOrSellEnum): LimitPriceOrders? {
         return orderQueueMap[(price to buyOrSellEnum)]
     }
 
@@ -93,7 +101,7 @@ class LimitOrderBook(
         return orderMap[orderId]
     }
 
-    fun getVolume(price: Double, buyOrSellEnum: BuyOrSellEnum): Double? {
+    fun getVolume(price: BigDecimal, buyOrSellEnum: BuyOrSellEnum): BigDecimal? {
         return volumeMap[(price to buyOrSellEnum)]
     }
 
@@ -125,20 +133,20 @@ class LimitOrderBook(
     }
 
     private fun addToTradeHistory(trade: Trade) {
-        logger.info { "Trade executed ${trade.currencyPair} ${trade.takerSide}, quantity ${trade.quoteVolume} @ ${trade.price}" }
+        logger.info { "Trade executed ${trade.currencyPair} ${trade.takerSide}, quantity ${trade.quantity} @ ${trade.price}" }
         recentTrades[trade.tradedAt] = trade
     }
 
-    private fun reduceVolumeMap(orderPrice: Double, buyOrSellEnum: BuyOrSellEnum, volume: Double) {
+    private fun reduceVolumeMap(orderPrice: BigDecimal, buyOrSellEnum: BuyOrSellEnum, volume: BigDecimal) {
         volumeMap.compute(orderPrice to buyOrSellEnum) { _, value ->
             val updatedVolume = value?.minus(volume)
-            if (updatedVolume == 0.0) null else updatedVolume
+            if (updatedVolume?.compareTo(BigDecimal.ZERO) == 0) null else updatedVolume
         }
     }
 
     private fun getTradeSideDetail(order: Order) = when (order.buyOrSellEnum) {
-        BuyOrSellEnum.BUY -> Triple(bestBid, bestAsk) { a: Double, b: Double -> a <= b }
-        BuyOrSellEnum.SELL -> Triple(bestAsk, bestBid) { a: Double, b: Double -> a >= b }
+        BuyOrSellEnum.BUY -> Triple(bestBid, bestAsk) { a: BigDecimal, b: BigDecimal -> a <= b }
+        BuyOrSellEnum.SELL -> Triple(bestAsk, bestBid) { a: BigDecimal, b: BigDecimal -> a >= b }
     }
 
     private fun addOrderToBook(
@@ -161,6 +169,10 @@ class LimitOrderBook(
             orderQueueMap[order.price to order.buyOrSellEnum] = limitPriceOrders
             volumeMap[order.price to order.buyOrSellEnum] = order.volume
         }
+    }
+
+    fun min(a: BigDecimal, b: BigDecimal): BigDecimal {
+        return if (a <= b) a else b
     }
 
 }
