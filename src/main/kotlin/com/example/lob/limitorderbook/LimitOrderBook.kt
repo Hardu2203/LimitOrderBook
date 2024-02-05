@@ -75,6 +75,7 @@ class LimitOrderBook(
                 ?: throw IllegalStateException("OrderId $orderId was not found in the LimitOrderBook queueMap")
             limitPriceOrders.orders.remove(order)
             limitPriceOrders.quantity.minus(order.quantity)
+            limitPriceOrders.orderCount = limitPriceOrders.orderCount.dec()
             if (limitPriceOrders.orders.size == 0) {
                 orderQueueMap.remove(order.price to order.buyOrSellEnum)
                 val (sameSide) = getTradeSideDetail(order)
@@ -191,6 +192,7 @@ class LimitOrderBook(
         if (queue != null) {
             queue.orders.add(order)
             queue.quantity += order.quantity
+            queue.orderCount = queue.orderCount.inc()
             volumeMap[order.price to order.buyOrSellEnum] =
                 volumeMap[order.price to order.buyOrSellEnum]?.plus(order.volume)
                     ?: throw IllegalStateException("OrderId: ${order.orderId} was not found in the LimitOrderBook volumeMap")

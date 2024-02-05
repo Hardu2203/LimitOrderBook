@@ -8,5 +8,5 @@ data class LimitPriceOrders(
     val price: BigDecimal,
     var quantity: BigDecimal,
     val orders: LinkedList<Order>,
-    val orderCount: Int = orders.size
+    var orderCount: Int = orders.size
 )
