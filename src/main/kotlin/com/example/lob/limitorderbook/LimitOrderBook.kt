@@ -81,22 +81,27 @@ class LimitOrderBook(
     fun cancelOrder(
         orderId: OrderId,
     ) {
-        val order = orderMap[orderId]
-        if (order != null) {
-            val limitPriceOrders = orderQueueMap[order.price to order.buyOrSellEnum]
-                ?: throw IllegalStateException("OrderId $orderId was not found in the LimitOrderBook queueMap")
-            limitPriceOrders.orders.remove(order)
-            limitPriceOrders.quantity.minus(order.quantity)
-            limitPriceOrders.orderCount = limitPriceOrders.orderCount.dec()
-            if (limitPriceOrders.orders.size == 0) {
-                orderQueueMap.remove(order.price to order.buyOrSellEnum)
-                val (sameSide) = getTradeSideDetail(order)
-                sameSide.remove(limitPriceOrders.price)
-            }
-            if (order.volume > BigDecimal.ZERO) reduceVolumeMap(order.price, order.buyOrSellEnum, order.volume)
-            orderMap.remove(orderId)
+        val order = getOrderByOrderId(orderId)
+        val orderQueueAtPriceAndSide = getOrderQueueAtPriceAndSide(order)
+        orderQueueAtPriceAndSide.orders.remove(order)
+        orderQueueAtPriceAndSide.quantity.minus(order.quantity)
+        orderQueueAtPriceAndSide.orderCount = orderQueueAtPriceAndSide.orderCount.dec()
+        if (orderQueueAtPriceAndSide.orders.size == 0) {
+            removeOrderFromSameSideTreeMap(order, orderQueueAtPriceAndSide)
         }
+        if (order.volume > BigDecimal.ZERO) reduceVolumeMap(order.price, order.buyOrSellEnum, order.volume)
+        orderMap.remove(orderId)
     }
+
+    private fun removeOrderFromSameSideTreeMap(
+        order: Order,
+        orderQueueAtPriceAndSide: LimitPriceOrders
+    ) {
+        orderQueueMap.remove(order.price to order.buyOrSellEnum)
+        val (sameSide) = getTradeSideDetail(order)
+        sameSide.remove(orderQueueAtPriceAndSide.price)
+    }
+
 
     fun getBestBidOrNull(): Order? {
         return if (bestBid.isEmpty()) {
@@ -157,6 +162,11 @@ class LimitOrderBook(
 
         return bestAskList
     }
+
+    private fun getOrderQueueAtPriceAndSide(
+        order: Order
+    ) = (orderQueueMap[order.price to order.buyOrSellEnum]
+        ?: throw NoSuchElementException("OrderId ${order.orderId} was not found in the LimitOrderBook queueMap"))
 
     private fun getLimitPriceOrders(otherSide: TreeMap<BigDecimal, LimitPriceOrders>) =
         otherSide[otherSide.firstKey()]
@@ -220,6 +230,9 @@ class LimitOrderBook(
         volumeMap[order.price to order.buyOrSellEnum] = order.volume
     }
 
+    private fun getOrderByOrderId(orderId: OrderId) =
+        orderMap[orderId] ?: throw NoSuchElementException("OrderId: ${orderId.id} does not exist in the map")
+
     private fun addOrderToQueueAtPriceAndSide(orderQueue: LimitPriceOrders, order: Order) {
         orderQueue.orders.add(order)
         orderQueue.quantity += order.quantity
@@ -229,7 +242,7 @@ class LimitOrderBook(
                 ?: throw IllegalStateException("OrderId: ${order.orderId} was not found in the LimitOrderBook volumeMap")
     }
 
-    fun min(a: BigDecimal, b: BigDecimal): BigDecimal {
+    private fun min(a: BigDecimal, b: BigDecimal): BigDecimal {
         return if (a <= b) a else b
     }
 
