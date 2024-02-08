@@ -31,53 +31,6 @@ class LimitOrderBook(
         }
     }
 
-    private fun matchOrders(
-        order: Order,
-        otherSide: TreeMap<BigDecimal, LimitPriceOrders>,
-        sidePriceComparison: (BigDecimal, BigDecimal) -> Boolean
-    ): Order {
-        while (order.volume > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) && sidePriceComparison(
-                getBestPrice(otherSide),
-                order.price
-            )) {
-            val otherLimitPriceOrders = getLimitPriceOrders(otherSide)
-            val otherOrder = getBestOrder(otherLimitPriceOrders)
-            val tradeVolume = min(order.volume, otherOrder.volume)
-            val tradeQuantity = min(order.quantity, otherOrder.quantity)
-
-            reduceVolumeMap(otherOrder.price, otherOrder.buyOrSellEnum, tradeVolume)
-
-            otherOrder.volume -= tradeVolume
-            order.volume -= tradeVolume
-            otherOrder.quantity -= tradeQuantity
-            order.quantity -= tradeQuantity
-            otherLimitPriceOrders.quantity -= tradeQuantity
-
-            logger.info { "Existing order ${otherOrder.orderId} ${otherOrder.buyOrSellEnum} matched with ${order.orderId} ${order.buyOrSellEnum} " }
-
-            addToTradeHistory(
-                Trade(
-                    price = otherOrder.price,
-                    quantity = tradeQuantity,
-                    currencyPair = otherOrder.currencyPair,
-                    tradedAt = ZonedDateTime.now(),
-                    takerSide = order.buyOrSellEnum,
-                )
-            )
-
-            if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
-                cancelOrder(otherOrder.orderId)
-            }
-        }
-
-        return order
-    }
-
-    private fun processRemainingOrder(order: Order, sameSide: TreeMap<BigDecimal, LimitPriceOrders>) {
-        orderMap[order.orderId] = order
-        addOrderToBook(order, sameSide)
-    }
-
     fun cancelOrder(
         orderId: OrderId,
     ) {
@@ -162,6 +115,54 @@ class LimitOrderBook(
 
         return bestAskList
     }
+
+    private fun matchOrders(
+        order: Order,
+        otherSide: TreeMap<BigDecimal, LimitPriceOrders>,
+        sidePriceComparison: (BigDecimal, BigDecimal) -> Boolean
+    ): Order {
+        while (order.volume > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) && sidePriceComparison(
+                getBestPrice(otherSide),
+                order.price
+            )) {
+            val otherLimitPriceOrders = getLimitPriceOrders(otherSide)
+            val otherOrder = getBestOrder(otherLimitPriceOrders)
+            val tradeVolume = min(order.volume, otherOrder.volume)
+            val tradeQuantity = min(order.quantity, otherOrder.quantity)
+
+            reduceVolumeMap(otherOrder.price, otherOrder.buyOrSellEnum, tradeVolume)
+
+            otherOrder.volume -= tradeVolume
+            order.volume -= tradeVolume
+            otherOrder.quantity -= tradeQuantity
+            order.quantity -= tradeQuantity
+            otherLimitPriceOrders.quantity -= tradeQuantity
+
+            logger.info { "Existing order ${otherOrder.orderId} ${otherOrder.buyOrSellEnum} matched with ${order.orderId} ${order.buyOrSellEnum} " }
+
+            addToTradeHistory(
+                Trade(
+                    price = otherOrder.price,
+                    quantity = tradeQuantity,
+                    currencyPair = otherOrder.currencyPair,
+                    tradedAt = ZonedDateTime.now(),
+                    takerSide = order.buyOrSellEnum,
+                )
+            )
+
+            if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
+                cancelOrder(otherOrder.orderId)
+            }
+        }
+
+        return order
+    }
+
+    private fun processRemainingOrder(order: Order, sameSide: TreeMap<BigDecimal, LimitPriceOrders>) {
+        orderMap[order.orderId] = order
+        addOrderToBook(order, sameSide)
+    }
+
 
     private fun getOrderQueueAtPriceAndSide(
         order: Order
