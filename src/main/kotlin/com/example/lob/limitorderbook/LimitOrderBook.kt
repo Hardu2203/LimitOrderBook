@@ -24,14 +24,24 @@ class LimitOrderBook(
     fun addOrder(order: Order) {
         val (sameSide, otherSide, sidePriceComparison) = getTradeSideDetail(order)
 
+        val orderWithRemainingVolume = matchOrders(order, otherSide, sidePriceComparison)
+
+        if (orderWithRemainingVolume.volume > BigDecimal.ZERO) {
+            processRemainingOrder(orderWithRemainingVolume, sameSide)
+        }
+    }
+
+    private fun matchOrders(
+        order: Order,
+        otherSide: TreeMap<BigDecimal, LimitPriceOrders>,
+        sidePriceComparison: (BigDecimal, BigDecimal) -> Boolean
+    ): Order {
         while (order.volume > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) && sidePriceComparison(
                 getBestPrice(otherSide),
                 order.price
-            )
-        ) {
+            )) {
             val otherLimitPriceOrders = getLimitPriceOrders(otherSide)
             val otherOrder = getBestOrder(otherLimitPriceOrders)
-            val tradePrice = otherOrder.price
             val tradeVolume = min(order.volume, otherOrder.volume)
             val tradeQuantity = min(order.quantity, otherOrder.quantity)
 
@@ -47,7 +57,7 @@ class LimitOrderBook(
 
             addToTradeHistory(
                 Trade(
-                    price = tradePrice,
+                    price = otherOrder.price,
                     quantity = tradeQuantity,
                     currencyPair = otherOrder.currencyPair,
                     tradedAt = ZonedDateTime.now(),
@@ -60,10 +70,12 @@ class LimitOrderBook(
             }
         }
 
-        if (order.volume > BigDecimal.ZERO) {
-            orderMap[order.orderId] = order
-            addOrderToBook(order, sameSide)
-        }
+        return order
+    }
+
+    private fun processRemainingOrder(order: Order, sameSide: TreeMap<BigDecimal, LimitPriceOrders>) {
+        orderMap[order.orderId] = order
+        addOrderToBook(order, sameSide)
     }
 
     fun cancelOrder(
@@ -88,7 +100,7 @@ class LimitOrderBook(
 
     fun getBestBidOrNull(): Order? {
         return if (bestBid.isEmpty()) {
-            null // Return null if the TreeMap is empty
+            null
         } else {
             bestBid[bestBid.firstKey()]?.orders?.peek()
         }
@@ -188,22 +200,33 @@ class LimitOrderBook(
         sameSide: TreeMap<BigDecimal, LimitPriceOrders>,
     ) {
         logger.info { "Adding to orderbook: orderId ${order.orderId}, side ${order.buyOrSellEnum}, for ${order.quantity} @ ${order.price} " }
-        val queue = orderQueueMap[order.price to order.buyOrSellEnum]
-        if (queue != null) {
-            queue.orders.add(order)
-            queue.quantity += order.quantity
-            queue.orderCount = queue.orderCount.inc()
-            volumeMap[order.price to order.buyOrSellEnum] =
-                volumeMap[order.price to order.buyOrSellEnum]?.plus(order.volume)
-                    ?: throw IllegalStateException("OrderId: ${order.orderId} was not found in the LimitOrderBook volumeMap")
+        val orderQueue = orderQueueMap[order.price to order.buyOrSellEnum]
+        if (orderQueue != null) {
+            addOrderToQueueAtPriceAndSide(orderQueue, order)
         } else {
-            val linkedList = LinkedList<Order>()
-            linkedList.add(order)
-            val limitPriceOrders = LimitPriceOrders(order.price, order.quantity, linkedList)
-            sameSide[order.price] = (limitPriceOrders)
-            orderQueueMap[order.price to order.buyOrSellEnum] = limitPriceOrders
-            volumeMap[order.price to order.buyOrSellEnum] = order.volume
+            createQueueAtPriceAndSideWithOrder(order, sameSide)
         }
+    }
+
+    private fun createQueueAtPriceAndSideWithOrder(
+        order: Order,
+        sameSide: TreeMap<BigDecimal, LimitPriceOrders>
+    ) {
+        val linkedList = LinkedList<Order>()
+        linkedList.add(order)
+        val limitPriceOrders = LimitPriceOrders(order.price, order.quantity, linkedList)
+        sameSide[order.price] = (limitPriceOrders)
+        orderQueueMap[order.price to order.buyOrSellEnum] = limitPriceOrders
+        volumeMap[order.price to order.buyOrSellEnum] = order.volume
+    }
+
+    private fun addOrderToQueueAtPriceAndSide(orderQueue: LimitPriceOrders, order: Order) {
+        orderQueue.orders.add(order)
+        orderQueue.quantity += order.quantity
+        orderQueue.orderCount = orderQueue.orderCount.inc()
+        volumeMap[order.price to order.buyOrSellEnum] =
+            volumeMap[order.price to order.buyOrSellEnum]?.plus(order.volume)
+                ?: throw IllegalStateException("OrderId: ${order.orderId} was not found in the LimitOrderBook volumeMap")
     }
 
     fun min(a: BigDecimal, b: BigDecimal): BigDecimal {
