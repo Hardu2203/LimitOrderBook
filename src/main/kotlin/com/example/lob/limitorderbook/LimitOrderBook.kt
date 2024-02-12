@@ -16,7 +16,6 @@ class LimitOrderBook(
     private val bestAsk: TreeMap<BigDecimal, LimitPriceOrders> = TreeMap(),
     private val bestBid: TreeMap<BigDecimal, LimitPriceOrders> = TreeMap(Collections.reverseOrder()),
     private val orderMap: MutableMap<OrderId, Order> = mutableMapOf(),
-    private val volumeMap: MutableMap<Pair<BigDecimal, BuyOrSellEnum>, BigDecimal> = mutableMapOf(),
     private val orderQueueMap: MutableMap<Pair<BigDecimal, BuyOrSellEnum>, LimitPriceOrders> = mutableMapOf(),
     private val recentTrades: TreeMap<ZonedDateTime, Trade> = TreeMap<ZonedDateTime, Trade>()
 ) {
@@ -42,7 +41,6 @@ class LimitOrderBook(
         if (orderQueueAtPriceAndSide.orders.size == 0) {
             removeOrderFromSameSideTreeMap(order, orderQueueAtPriceAndSide)
         }
-        if (order.volume > BigDecimal.ZERO) reduceVolumeMap(order.price, order.buyOrSellEnum, order.volume)
         orderMap.remove(orderId)
     }
 
@@ -70,10 +68,6 @@ class LimitOrderBook(
         return orderMap[orderId]
     }
 
-    fun getVolume(price: BigDecimal, buyOrSellEnum: BuyOrSellEnum): BigDecimal? {
-        return volumeMap[(price to buyOrSellEnum)]
-    }
-
     fun getTradeHistory(
         startTime: ZonedDateTime = ZonedDateTime.parse("2000-01-01T00:00:00Z"),
         endDateTime: ZonedDateTime = ZonedDateTime.parse("9999-12-31T23:59:59Z"),
@@ -81,6 +75,18 @@ class LimitOrderBook(
         limit: Int = 100,
     ): List<Trade> {
         return recentTrades.subMap(startTime, endDateTime).values.drop(skip).take(limit)
+    }
+
+    fun getBestBids(first: Int): MutableList<LimitPriceOrders> {
+        val bestBidList: MutableList<LimitPriceOrders> = mutableListOf()
+
+        bestBid.entries.take(min(bestBid.size, first)).forEach { entry ->
+            entry.value.let { limitPriceOrders ->
+                bestBidList.add(limitPriceOrders)
+            }
+        }
+
+        return bestBidList
     }
 
     fun <T> getBestBids(first: Int, mapping: (LimitPriceOrders) -> T): List<T> {
@@ -94,6 +100,19 @@ class LimitOrderBook(
 
         return bestBidList
     }
+
+    fun getBestAsks(first: Int): List<LimitPriceOrders> {
+        val bestAskList: MutableList<LimitPriceOrders> = mutableListOf()
+
+        bestAsk.entries.take(min(bestAsk.size, first)).forEach { entry ->
+            entry.value.let { limitPriceOrders ->
+                bestAskList.add(limitPriceOrders)
+            }
+        }
+
+        return bestAskList
+    }
+
     fun <T> getBestAsks(first: Int, mapping: (LimitPriceOrders) -> T): List<T> {
         val bestAskList: MutableList<T> = mutableListOf()
 
@@ -118,11 +137,9 @@ class LimitOrderBook(
             sidePriceComparison(getBestPrice(otherSide), order.price)) {
 
             val (bestMatchingPrice, bestLimitPriceOrders) = findBestMatchingPrice(otherSide)
-
-            val tradeVolume = min(order.volume, bestLimitPriceOrders.orders.peek().volume)
             val tradeQuantity = min(order.quantity, bestLimitPriceOrders.orders.peek().quantity)
 
-            executeTrade(order, bestLimitPriceOrders, tradeVolume, tradeQuantity)
+            executeTrade(order, bestLimitPriceOrders, tradeQuantity)
             updateTradeHistory(order, bestMatchingPrice, order.buyOrSellEnum, tradeQuantity)
 
             remainingQuantity -= tradeQuantity
@@ -140,19 +157,15 @@ class LimitOrderBook(
     private fun executeTrade(
         order: Order,
         bestLimitPriceOrders: LimitPriceOrders,
-        tradeVolume: BigDecimal,
         tradeQuantity: BigDecimal
     ) {
         val otherOrder = bestLimitPriceOrders.orders.peek() ?: throw IllegalStateException("Best order should not be null")
-        reduceVolumeMap(otherOrder.price, otherOrder.buyOrSellEnum, tradeVolume)
 
-        otherOrder.volume -= tradeVolume
-        order.volume -= tradeVolume
         otherOrder.quantity -= tradeQuantity
         order.quantity -= tradeQuantity
         bestLimitPriceOrders.quantity -= tradeQuantity
 
-        logger.info { "Matching orders, id: ${order.orderId} (${order.buyOrSellEnum}) with id: ${otherOrder.orderId} (${otherOrder.buyOrSellEnum}), volume: $tradeVolume, quantity: $tradeQuantity" }
+        logger.info { "Matching orders, id: ${order.orderId} (${order.buyOrSellEnum}) with id: ${otherOrder.orderId} (${otherOrder.buyOrSellEnum}), quantity: $tradeQuantity" }
 
         if (otherOrder.quantity.compareTo(BigDecimal.ZERO) == 0) {
             cancelOrder(otherOrder.orderId)
@@ -211,13 +224,6 @@ class LimitOrderBook(
         return otherSide[otherSide.firstKey()]?.orders?.peek()?.price ?: throw IllegalStateException("Best price should not be null")
     }
 
-    private fun reduceVolumeMap(orderPrice: BigDecimal, buyOrSellEnum: BuyOrSellEnum, volume: BigDecimal) {
-        volumeMap.compute(orderPrice to buyOrSellEnum) { _, value ->
-            val updatedVolume = value?.minus(volume)
-            if (updatedVolume?.compareTo(BigDecimal.ZERO) == 0) null else updatedVolume
-        }
-    }
-
     private fun getTradeSideDetail(order: Order) = when (order.buyOrSellEnum) {
         BuyOrSellEnum.BUY -> Triple(bestBid, bestAsk) { a: BigDecimal, b: BigDecimal -> a <= b }
         BuyOrSellEnum.SELL -> Triple(bestAsk, bestBid) { a: BigDecimal, b: BigDecimal -> a >= b }
@@ -245,7 +251,6 @@ class LimitOrderBook(
         val limitPriceOrders = LimitPriceOrders(order.price, order.quantity, linkedList)
         sameSide[order.price] = (limitPriceOrders)
         orderQueueMap[order.price to order.buyOrSellEnum] = limitPriceOrders
-        volumeMap[order.price to order.buyOrSellEnum] = order.volume
     }
 
     private fun getOrderByOrderId(orderId: OrderId) =
@@ -255,9 +260,6 @@ class LimitOrderBook(
         orderQueue.orders.add(order)
         orderQueue.quantity += order.quantity
         orderQueue.orderCount = orderQueue.orderCount.inc()
-        volumeMap[order.price to order.buyOrSellEnum] =
-            volumeMap[order.price to order.buyOrSellEnum]?.plus(order.volume)
-                ?: throw IllegalStateException("OrderId: ${order.orderId} was not found in the LimitOrderBook volumeMap")
     }
 
     private fun min(a: BigDecimal, b: BigDecimal): BigDecimal {

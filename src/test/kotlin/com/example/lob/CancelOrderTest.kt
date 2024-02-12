@@ -50,7 +50,6 @@ class CancelOrderTest {
             Assertions.assertEquals(buyOrder2.orderId, limitOrderBook.getBestBidOrNull()?.orderId)
             Assertions.assertEquals(1, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.size)
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(buyOrder1.orderId))
-            Assertions.assertEquals(BigDecimal(200.0), limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.BUY))
         }
 
 
@@ -75,7 +74,6 @@ class CancelOrderTest {
             Assertions.assertEquals(null, limitOrderBook.getBestBidOrNull())
             Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10), BuyOrSellEnum.BUY))
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(buyOrder1.orderId))
-            Assertions.assertEquals(null, limitOrderBook.getVolume(BigDecimal(10), BuyOrSellEnum.BUY))
         }
     }
 
@@ -113,7 +111,6 @@ class CancelOrderTest {
             Assertions.assertEquals(sellOrder2.orderId, limitOrderBook.getBestAskOrNull()?.orderId)
             Assertions.assertEquals(1, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.SELL)?.orders?.size)
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(sellOrder1.orderId))
-            Assertions.assertEquals(BigDecimal(200.0), limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.SELL))
         }
 
 
@@ -138,7 +135,6 @@ class CancelOrderTest {
             Assertions.assertEquals(null, limitOrderBook.getBestAskOrNull())
             Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.SELL))
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(sellOrder1.orderId))
-            Assertions.assertEquals(null, limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.SELL))
         }
     }
 

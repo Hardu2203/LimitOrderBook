@@ -49,8 +49,6 @@ class MatchBidTest {
             Assertions.assertEquals(BigDecimal(80.0), limitOrderBook.getBestAskOrNull()?.price)
             Assertions.assertEquals(buyOrder1, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.peek())
             Assertions.assertEquals(sellOrder1, limitOrderBook.getOrderQueue(BigDecimal(80.0), BuyOrSellEnum.SELL)?.orders?.peek())
-            Assertions.assertEquals(BigDecimal(50.0), limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.BUY))
-            Assertions.assertEquals(BigDecimal(400.0), limitOrderBook.getVolume(BigDecimal(80.0), BuyOrSellEnum.SELL))
 
             Assertions.assertEquals(0, limitOrderBook.getTradeHistory().size)
         }
@@ -83,12 +81,10 @@ class MatchBidTest {
             Assertions.assertEquals(null, limitOrderBook.getBestBidOrNull())
             Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY))
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(buyOrder1.orderId))
-            Assertions.assertEquals(null, limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.BUY))
 
             Assertions.assertEquals(null, limitOrderBook.getBestAskOrNull())
             Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.SELL))
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(sellOrder1.orderId))
-            Assertions.assertEquals(null, limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.SELL))
 
             Assertions.assertEquals(1, limitOrderBook.getTradeHistory().size)
         }
@@ -119,12 +115,9 @@ class MatchBidTest {
             //then
             Assertions.assertEquals(BigDecimal(10.0), limitOrderBook.getBestBidOrNull()?.price)
             Assertions.assertEquals(1, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.size)
-            Assertions.assertEquals(BigDecimal(150.0), limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.BUY))
-
             Assertions.assertEquals(null, limitOrderBook.getBestAskOrNull())
             Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.SELL))
             Assertions.assertEquals(null, limitOrderBook.getOrderByIdOrNull(sellOrder1.orderId))
-            Assertions.assertEquals(null, limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.SELL))
 
             Assertions.assertEquals(1, limitOrderBook.getTradeHistory().size)
         }
@@ -165,11 +158,9 @@ class MatchBidTest {
             //then
             Assertions.assertEquals(BigDecimal(10.0), limitOrderBook.getBestBidOrNull()?.price)
             Assertions.assertEquals(1, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.size)
-            Assertions.assertEquals(BigDecimal(130.0), limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.BUY))
 
             Assertions.assertEquals(null, limitOrderBook.getBestAskOrNull())
             Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.SELL))
-            Assertions.assertEquals(null, limitOrderBook.getVolume(BigDecimal(10.0), BuyOrSellEnum.SELL))
 
             Assertions.assertEquals(2, limitOrderBook.getTradeHistory().size)
         }
