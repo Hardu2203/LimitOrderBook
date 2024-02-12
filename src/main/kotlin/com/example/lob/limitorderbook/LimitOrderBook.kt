@@ -26,7 +26,7 @@ class LimitOrderBook(
 
         val orderWithRemainingVolume = matchOrders(order, otherSide, sidePriceComparison)
 
-        if (orderWithRemainingVolume.volume > BigDecimal.ZERO) {
+        if (orderWithRemainingVolume.quantity > BigDecimal.ZERO) {
             processRemainingOrder(orderWithRemainingVolume, sameSide)
         }
     }
@@ -112,20 +112,20 @@ class LimitOrderBook(
         sidePriceComparison: (BigDecimal, BigDecimal) -> Boolean
     ): Order {
 
-        var remainingVolume = order.volume
+        var remainingQuantity = order.quantity
 
-        while (remainingVolume > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) &&
+        while (remainingQuantity > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) &&
             sidePriceComparison(getBestPrice(otherSide), order.price)) {
 
             val (bestMatchingPrice, bestLimitPriceOrders) = findBestMatchingPrice(otherSide)
 
-            val tradeVolume = min(remainingVolume, bestLimitPriceOrders.orders.peek().volume)
+            val tradeVolume = min(order.volume, bestLimitPriceOrders.orders.peek().volume)
             val tradeQuantity = min(order.quantity, bestLimitPriceOrders.orders.peek().quantity)
 
             executeTrade(order, bestLimitPriceOrders, tradeVolume, tradeQuantity)
             updateTradeHistory(order, bestMatchingPrice, order.buyOrSellEnum, tradeQuantity)
 
-            remainingVolume -= tradeVolume
+            remainingQuantity -= tradeQuantity
         }
 
         return order
@@ -154,7 +154,7 @@ class LimitOrderBook(
 
         logger.info { "Matching orders, id: ${order.orderId} (${order.buyOrSellEnum}) with id: ${otherOrder.orderId} (${otherOrder.buyOrSellEnum}), volume: $tradeVolume, quantity: $tradeQuantity" }
 
-        if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
+        if (otherOrder.quantity.compareTo(BigDecimal.ZERO) == 0) {
             cancelOrder(otherOrder.orderId)
         }
     }
