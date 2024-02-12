@@ -46,16 +46,6 @@ class LimitOrderBook(
         orderMap.remove(orderId)
     }
 
-    private fun removeOrderFromSameSideTreeMap(
-        order: Order,
-        orderQueueAtPriceAndSide: LimitPriceOrders
-    ) {
-        orderQueueMap.remove(order.price to order.buyOrSellEnum)
-        val (sameSide) = getTradeSideDetail(order)
-        sameSide.remove(orderQueueAtPriceAndSide.price)
-    }
-
-
     fun getBestBidOrNull(): Order? {
         return if (bestBid.isEmpty()) {
             null
@@ -121,42 +111,80 @@ class LimitOrderBook(
         otherSide: TreeMap<BigDecimal, LimitPriceOrders>,
         sidePriceComparison: (BigDecimal, BigDecimal) -> Boolean
     ): Order {
-        while (order.volume > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) && sidePriceComparison(
-                getBestPrice(otherSide),
-                order.price
-            )) {
-            val otherLimitPriceOrders = getLimitPriceOrders(otherSide)
-            val otherOrder = getBestOrder(otherLimitPriceOrders)
-            val tradeVolume = min(order.volume, otherOrder.volume)
-            val tradeQuantity = min(order.quantity, otherOrder.quantity)
 
-            reduceVolumeMap(otherOrder.price, otherOrder.buyOrSellEnum, tradeVolume)
+        var remainingVolume = order.volume
 
-            otherOrder.volume -= tradeVolume
-            order.volume -= tradeVolume
-            otherOrder.quantity -= tradeQuantity
-            order.quantity -= tradeQuantity
-            otherLimitPriceOrders.quantity -= tradeQuantity
+        while (remainingVolume > BigDecimal.ZERO && checkOtherSideBestPriceIsNotEmpty(otherSide) &&
+            sidePriceComparison(getBestPrice(otherSide), order.price)) {
 
-            logger.info { "Existing order ${otherOrder.orderId} ${otherOrder.buyOrSellEnum} matched with ${order.orderId} ${order.buyOrSellEnum} " }
+            val (bestMatchingPrice, bestLimitPriceOrders) = findBestMatchingPrice(otherSide)
 
-            addToTradeHistory(
-                Trade(
-                    price = otherOrder.price,
-                    quantity = tradeQuantity,
-                    currencyPair = otherOrder.currencyPair,
-                    tradedAt = ZonedDateTime.now(),
-                    takerSide = order.buyOrSellEnum,
-                )
-            )
+            val tradeVolume = min(remainingVolume, bestLimitPriceOrders.orders.peek().volume)
+            val tradeQuantity = min(order.quantity, bestLimitPriceOrders.orders.peek().quantity)
 
-            if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
-                cancelOrder(otherOrder.orderId)
-            }
+            executeTrade(order, bestLimitPriceOrders, tradeVolume, tradeQuantity)
+            updateTradeHistory(order, bestMatchingPrice, order.buyOrSellEnum, tradeQuantity)
+
+            remainingVolume -= tradeVolume
         }
 
         return order
     }
+
+    private fun findBestMatchingPrice(otherSide: TreeMap<BigDecimal, LimitPriceOrders>): Pair<BigDecimal, LimitPriceOrders> {
+        val bestPrice = otherSide.firstKey()
+        val bestLimitPriceOrders = otherSide[bestPrice] ?: throw IllegalStateException("Best limit order price order should not be null")
+        return bestPrice to bestLimitPriceOrders
+    }
+
+    private fun executeTrade(
+        order: Order,
+        bestLimitPriceOrders: LimitPriceOrders,
+        tradeVolume: BigDecimal,
+        tradeQuantity: BigDecimal
+    ) {
+        val otherOrder = bestLimitPriceOrders.orders.peek() ?: throw IllegalStateException("Best order should not be null")
+        reduceVolumeMap(otherOrder.price, otherOrder.buyOrSellEnum, tradeVolume)
+
+        otherOrder.volume -= tradeVolume
+        order.volume -= tradeVolume
+        otherOrder.quantity -= tradeQuantity
+        order.quantity -= tradeQuantity
+        bestLimitPriceOrders.quantity -= tradeQuantity
+
+        logger.info { "Matching orders: ${order.orderId}(${order.buyOrSellEnum}) with ${otherOrder.orderId}(${otherOrder.buyOrSellEnum}), volume: $tradeVolume, quantity: $tradeQuantity" }
+
+        if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
+            cancelOrder(otherOrder.orderId)
+        }
+    }
+
+    private fun updateTradeHistory(
+        order: Order,
+        tradePrice: BigDecimal,
+        takerSide: BuyOrSellEnum,
+        tradeQuantity: BigDecimal
+    ) {
+        val trade = Trade(
+            price = tradePrice,
+            quantity = tradeQuantity,
+            currencyPair = order.currencyPair,
+            tradedAt = ZonedDateTime.now(),
+            takerSide = takerSide
+        )
+        recentTrades[trade.tradedAt] = trade
+        logger.info { "Trade executed: ${trade.currencyPair} ${trade.takerSide}, quantity: $tradeQuantity @ ${trade.price}" }
+    }
+
+    private fun removeOrderFromSameSideTreeMap(
+        order: Order,
+        orderQueueAtPriceAndSide: LimitPriceOrders
+    ) {
+        orderQueueMap.remove(order.price to order.buyOrSellEnum)
+        val (sameSide) = getTradeSideDetail(order)
+        sameSide.remove(orderQueueAtPriceAndSide.price)
+    }
+
 
     private fun processRemainingOrder(order: Order, sameSide: TreeMap<BigDecimal, LimitPriceOrders>) {
         orderMap[order.orderId] = order
@@ -169,12 +197,6 @@ class LimitOrderBook(
     ) = (orderQueueMap[order.price to order.buyOrSellEnum]
         ?: throw NoSuchElementException("OrderId ${order.orderId} was not found in the LimitOrderBook queueMap"))
 
-    private fun getLimitPriceOrders(otherSide: TreeMap<BigDecimal, LimitPriceOrders>) =
-        otherSide[otherSide.firstKey()]
-            ?: throw IllegalStateException("Other limit order price order should not be null")
-
-    private fun getBestOrder(otherLimitPriceOrders: LimitPriceOrders?) =
-        otherLimitPriceOrders?.orders?.peek() ?: throw IllegalStateException("Best order should not be null")
 
     private fun checkOtherSideBestPriceIsNotEmpty(otherSide: TreeMap<BigDecimal, LimitPriceOrders>): Boolean {
         return if (otherSide.isEmpty()) {
@@ -187,11 +209,6 @@ class LimitOrderBook(
 
     private fun getBestPrice(otherSide: TreeMap<BigDecimal, LimitPriceOrders>): BigDecimal {
         return otherSide[otherSide.firstKey()]?.orders?.peek()?.price ?: throw IllegalStateException("Best price should not be null")
-    }
-
-    private fun addToTradeHistory(trade: Trade) {
-        logger.info { "Trade executed ${trade.currencyPair} ${trade.takerSide}, quantity ${trade.quantity} @ ${trade.price}" }
-        recentTrades[trade.tradedAt] = trade
     }
 
     private fun reduceVolumeMap(orderPrice: BigDecimal, buyOrSellEnum: BuyOrSellEnum, volume: BigDecimal) {
