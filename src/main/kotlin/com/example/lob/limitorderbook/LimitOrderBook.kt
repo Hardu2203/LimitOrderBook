@@ -152,7 +152,7 @@ class LimitOrderBook(
         order.quantity -= tradeQuantity
         bestLimitPriceOrders.quantity -= tradeQuantity
 
-        logger.info { "Matching orders: ${order.orderId}(${order.buyOrSellEnum}) with ${otherOrder.orderId}(${otherOrder.buyOrSellEnum}), volume: $tradeVolume, quantity: $tradeQuantity" }
+        logger.info { "Matching orders, id: ${order.orderId} (${order.buyOrSellEnum}) with id: ${otherOrder.orderId} (${otherOrder.buyOrSellEnum}), volume: $tradeVolume, quantity: $tradeQuantity" }
 
         if (otherOrder.volume.compareTo(BigDecimal.ZERO) == 0) {
             cancelOrder(otherOrder.orderId)
