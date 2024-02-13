@@ -165,6 +165,51 @@ class MatchBidTest {
             Assertions.assertEquals(2, limitOrderBook.getTradeHistory().size)
         }
 
+        @Test
+        @DisplayName("Bid should match ask at existing best ask price")
+        fun bidShouldMatchAskAtExistingBestAskPrice() {
+            //given
+            val sellOrder1 = Order(
+                price = BigDecimal(40.0),
+                quantity = BigDecimal(50.0),
+                currencyPair = CurrencyPair.BTCZAR,
+                username = "Satoshi",
+                buyOrSellEnum = BuyOrSellEnum.SELL
+            )
+            val sellOrder2 = Order(
+                price = BigDecimal(10.0),
+                quantity = BigDecimal(20.0),
+                currencyPair = CurrencyPair.BTCZAR,
+                username = "Satoshi",
+                buyOrSellEnum = BuyOrSellEnum.SELL
+            )
+            val buyOrder1 = Order(
+                price = BigDecimal(50.0),
+                quantity = BigDecimal(25.0),
+                currencyPair = CurrencyPair.BTCZAR,
+                username = "Vitalik",
+                buyOrSellEnum = BuyOrSellEnum.BUY
+            )
+
+
+            //when
+            limitOrderBook.addOrder(sellOrder1)
+            limitOrderBook.addOrder(sellOrder2)
+            limitOrderBook.addOrder(buyOrder1)
+
+
+            //then
+            Assertions.assertEquals(null, limitOrderBook.getBestBidOrNull()?.price)
+            Assertions.assertEquals(null, limitOrderBook.getOrderQueue(BigDecimal(10.0), BuyOrSellEnum.BUY)?.orders?.size)
+
+            Assertions.assertEquals(BigDecimal(40.0), limitOrderBook.getBestAskOrNull()?.price)
+            Assertions.assertEquals(BigDecimal(45.0), limitOrderBook.getOrderQueue(BigDecimal(40.0), BuyOrSellEnum.SELL)?.quantity)
+
+            Assertions.assertEquals(2, limitOrderBook.getTradeHistory().size)
+            Assertions.assertEquals(BigDecimal(10.0), limitOrderBook.getTradeHistory().first().price)
+            Assertions.assertEquals(BigDecimal(40.0), limitOrderBook.getTradeHistory()[1].price)
+        }
+
     }
 
 }
